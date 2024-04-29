@@ -81,6 +81,10 @@ bool PTU::disableLimits()
 
 bool PTU::initialize()
 {
+  // check for initialisation pattern ending with "*\n"
+  std::string buffer = ser_->readline(PTU_BUFFER_LEN, "*\n");
+  ROS_DEBUG_STREAM("Initialisation stream: " << buffer);
+
   ptuWrite("ft ");  // terse feedback
   if (connection_type_ == tcp)ptuRead(20);  // tcp produces more output (* \r\n) than tty
   ptuWrite("ed ");  // disable echo
