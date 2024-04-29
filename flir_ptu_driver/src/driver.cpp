@@ -241,7 +241,7 @@ bool PTU::home()
   ptuFlush();
   ptuWrite(" r ");
 
-  std::string actual_response, expected_response("!T!T!P!P*");
+  std::string actual_response, expected_response("!T!T!P!P*\r\n");
 
   // 30 seconds to receive full confirmation of reset action completed.
   for (int i = 0; i < 300; i++)
@@ -251,7 +251,8 @@ bool PTU::home()
     if (available() >= expected_response.length())
     {
       ROS_INFO("PTU reset command response received.");
-      ptuRead(actual_response, expected_response.length());
+      ptuReadline(actual_response);
+      ROS_DEBUG_STREAM("PTU reset actual and expected responses match: " << (actual_response == expected_response));
       return (actual_response == expected_response);
     }
   }
