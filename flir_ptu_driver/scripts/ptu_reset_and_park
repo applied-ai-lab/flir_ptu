@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Auto-reset the FLIR PTU after init, then park it at a default pose.
+
+[Written by Claude]
+
+The flir_ptu driver creates its ``reset`` / ``cmd`` subscribers only at
+the very end of ``Node::connect()`` (node.cpp), *after* it has set the
+``/ptu/max_pan`` rosparam.  We therefore gate on that param to know the
+driver is initialised and about to be listening.
+
+``Node::resetCallback`` -> ``PTU::home()`` writes the firmware reset and
+*blocks the driver's callback thread* until the hardware reports the
+reset complete -- measured at ~30 s end to end.  We wait 35 s before
+sending the park pose so the queued ``/ptu/cmd`` is applied only after
+homing finishes (a pose sent during the reset would be overridden by
+the home to hardware zero).
+
+The park command is published latched so ``[0.0, -1.0]`` stands as the
+persistent default pose for any later subscriber.
+"""
+
+import rospy
+from std_msgs.msg import Bool
+from sensor_msgs.msg import JointState
+
+# Pan / tilt [rad] the PTU is driven to once the reset has completed.
+PARK_POSITION = [0.0, -1.0]
+# Seconds to wait after triggering the reset before sending the park
+# pose.  The full firmware reset cycle is ~30 s (measured); 35 s leaves
+# margin so the queued /ptu/cmd is applied strictly after homing.
+RESET_SETTLE_S = 35.0
+
+
+def main():
+    rospy.init_node("ptu_auto_reset")
+
+    # Driver sets /ptu/max_pan immediately before creating the reset/cmd
+    # subscribers -> its presence means "init done, about to listen".
+    while not rospy.has_param("/ptu/max_pan") and not rospy.is_shutdown():
+        rospy.sleep(0.5)
+    if rospy.is_shutdown():
+        return
+
+    reset_pub = rospy.Publisher("/ptu/reset", Bool, queue_size=1)
+    cmd_pub = rospy.Publisher("/ptu/cmd", JointState, queue_size=1, latch=True)
+
+    # Wait for the driver's reset subscriber so a non-latched publish is
+    # not dropped (avoids re-homing on every driver reconnect, which a
+    # latched reset would cause).
+    while reset_pub.get_num_connections() < 1 and not rospy.is_shutdown():
+        rospy.sleep(0.2)
+    if rospy.is_shutdown():
+        return
+
+    rospy.loginfo("[ptu_auto_reset] triggering PTU reset")
+    reset_pub.publish(Bool(True))
+
+    # home() blocks the driver ~30 s; wait it out before parking.
+    rospy.sleep(RESET_SETTLE_S)
+    if rospy.is_shutdown():
+        return
+
+    js = JointState()
+    js.name = ["ptu_pan", "ptu_tilt"]
+    js.velocity = [0.6, 0.6]
+    js.position = list(PARK_POSITION)
+    rospy.loginfo("[ptu_auto_reset] parking PTU at %s" % (PARK_POSITION,))
+    cmd_pub.publish(js)
+
+    # Keep the latched park command alive as the standing default pose.
+    rospy.spin()
+
+
+if __name__ == "__main__":
+    main()
