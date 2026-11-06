@@ -337,9 +337,9 @@ int main(int argc, char** argv)
     ptu_node.connect();
 
     // Set up polling callback
-    int hz;
-    ros::param::param<int>("~hz", hz, PTU_DEFAULT_HZ);
-    ros::Timer spin_timer = n.createTimer(ros::Duration(1 / hz),
+    float hz;
+    ros::param::param<float>("~hz", hz, PTU_DEFAULT_HZ);
+    ros::Timer spin_timer = n.createTimer(ros::Duration(1.0 / hz),
         &flir_ptu_driver::Node::spinCallback, &ptu_node);
 
     // Spin until there's a problem or we're in shutdown
