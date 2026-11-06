@@ -33,7 +33,7 @@ install(TARGETS flir_ptu_driver flir_ptu_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(PROGRAMS scripts/cmd_angles
+install(PROGRAMS scripts/cmd_angles scripts/ptu_reset_and_park
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY launch

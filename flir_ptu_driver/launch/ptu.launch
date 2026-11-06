@@ -26,4 +26,12 @@
     
     <remap from="state" to="/joint_states" />
   </node>
+
+  <!-- Auto-reset the PTU once the driver is initialised, then park it at
+       a default pose.  Gates on the /ptu/max_pan rosparam (set just
+       before the driver's subscribers come up), triggers the reset, waits
+       out the ~30 s firmware reset cycle, then publishes a latched
+       /ptu/cmd so the park pose stands as the default. -->
+  <node name="ptu_auto_reset" pkg="flir_ptu_driver" type="ptu_reset_and_park"
+        output="screen" />
 </launch>
